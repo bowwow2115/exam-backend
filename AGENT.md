@@ -10,6 +10,7 @@ Main features:
 - Multiple-answer question submission and scoring
 - Attempt result lookup
 - Wrong-note creation, lookup, and update
+- Optional JSON exam import for authorized local question data
 
 ## Tech Stack
 
@@ -88,6 +89,7 @@ Authentication currently uses stateless HTTP Basic. If token login is added late
 - Keep controllers thin. Put validation and business rules in services.
 - Use DTO records for request and response payloads.
 - Do not expose correct answers from public exam lookup.
+- Do not import, translate, or store third-party question banks unless the user has provided data they own or have permission to use.
 - Return correct answers and explanations only in attempt results and wrong notes.
 - Keep JPA relationships lazy by default, then use `@EntityGraph` on repository queries where read models need related data.
 - Use QueryDSL for dynamic conditions or read queries that become awkward with derived repository method names.
@@ -104,3 +106,7 @@ Production defaults:
 - `DDL_AUTO`: `update`
 
 For real deployments, prefer Flyway or Liquibase migrations over Hibernate `ddl-auto=update`.
+
+## Exam Import
+
+Authorized local question data can be imported on startup by setting `app.import.exam-json` or the equivalent `APP_IMPORT_EXAM_JSON` environment variable. See `docs/exam-import.md` for the JSON format.

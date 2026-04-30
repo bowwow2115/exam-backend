@@ -10,6 +10,8 @@ import java.util.Optional;
 
 public interface ExamRepository extends JpaRepository<Exam, Long> {
 
+    boolean existsByTitle(String title);
+
     @EntityGraph(attributePaths = {"createdBy", "questions"})
     List<Exam> findByPublishedTrueOrderByCreatedAtDesc();
 
