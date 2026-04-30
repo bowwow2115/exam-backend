@@ -1,0 +1,3 @@
+[submodule "src/main/resources/frontend"]
+	path = src/main/resources/frontend
+	url = https://github.com/bowwow2115/exam-frontend.git
