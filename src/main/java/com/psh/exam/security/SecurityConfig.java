@@ -27,6 +27,7 @@ public class SecurityConfig {
             PathPatternRequestMatcher.pathPattern(HttpMethod.GET, "/favicon.ico"),
             PathPatternRequestMatcher.pathPattern(HttpMethod.POST, "/api/accounts/signup"),
             PathPatternRequestMatcher.pathPattern(HttpMethod.POST, "/api/accounts/login")
+            // 시험 목록·상세·정답 확인 등 /api/exams/** 는 JWT 체인(인증 필요)에서만 처리한다.
     );
 
     @Bean
