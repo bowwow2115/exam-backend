@@ -12,6 +12,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -70,6 +71,18 @@ class SecurityPublicApiIntegrationTest {
         mockMvc.perform(get("/api/exams")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void correctChoiceIdsRequiresJwtToken() throws Exception {
+        mockMvc.perform(get("/api/exams/1/questions/1/correct-choice-ids"))
+                .andExpect(status().isUnauthorized());
+
+        String token = login("user-" + UUID.randomUUID() + "@example.com", "password123");
+
+        mockMvc.perform(get("/api/exams/1/questions/1/correct-choice-ids")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(result -> assertThat(result.getResponse().getStatus()).isNotEqualTo(401));
     }
 
     private void signUp(String email, String password) throws Exception {
