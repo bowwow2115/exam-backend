@@ -15,12 +15,20 @@ import org.springframework.security.web.SecurityFilterChain;
 @EnableWebSecurity
 public class SecurityConfig {
 
+    private static final String[] PUBLIC_FRONTEND_PATHS = {
+            "/",
+            "/index.html",
+            "/assets/**",
+            "/favicon.ico"
+    };
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
+                        .requestMatchers(PUBLIC_FRONTEND_PATHS).permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/accounts/signup").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/exams/**").permitAll()
                         .anyRequest().authenticated()

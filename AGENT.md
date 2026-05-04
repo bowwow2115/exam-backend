@@ -87,6 +87,8 @@ Authentication currently uses stateless HTTP Basic. If token login is added late
 ## Development Guidelines
 
 - Keep controllers thin. Put validation and business rules in services.
+- When backend API or Spring Security rules change, cross-check `src/main/resources/frontend` API usage and update the frontend if needed.
+- When frontend API usage changes, cross-check controllers and `SecurityConfig` so public and authenticated routes stay aligned.
 - Use DTO records for request and response payloads.
 - Do not expose correct answers from public exam lookup.
 - Do not import, translate, or store third-party question banks unless the user has provided data they own or have permission to use.
