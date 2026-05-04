@@ -14,6 +14,19 @@ public final class AccountDtos {
     ) {
     }
 
+    public record LoginRequest(
+            String email,
+            String password
+    ) {
+    }
+
+    public record LoginResponse(
+            String accessToken,
+            String tokenType,
+            AccountResponse account
+    ) {
+    }
+
     public record AccountResponse(
             Long id,
             String email,

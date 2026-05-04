@@ -5,8 +5,8 @@
 This is a Spring Boot 4 / Java 17 web application for multiple-choice exams with multiple correct answers. It uses Spring Data JPA, Spring Security, and PostgreSQL in production. Tests use H2 in PostgreSQL compatibility mode.
 
 Main features:
-- Account signup and HTTP Basic authentication
-- Exam creation and public exam lookup
+- Account signup and JWT authentication
+- Authenticated exam creation and lookup
 - Multiple-answer question submission and scoring
 - Attempt result lookup
 - Wrong-note creation, lookup, and update
@@ -70,19 +70,19 @@ Test configuration is in `src/test/resources/application.properties`.
 
 Public:
 - `POST /api/accounts/signup`
-- `GET /api/exams`
-- `GET /api/exams/{examId}`
+- `POST /api/accounts/login`
 
 Authenticated:
-- `POST /api/accounts/login`
 - `GET /api/accounts/me`
+- `GET /api/exams`
+- `GET /api/exams/{examId}`
 - `POST /api/exams`
 - `POST /api/exams/{examId}/attempts`
 - `GET /api/attempts/{attemptId}`
 - `GET /api/wrong-notes`
 - `PATCH /api/wrong-notes/{noteId}`
 
-Authentication currently uses stateless HTTP Basic. If token login is added later, keep the service layer independent from the authentication transport.
+Authentication uses stateless JWT bearer tokens. `POST /api/accounts/login` verifies the account email and password against the database and returns an access token. Frontend requests to authenticated endpoints must send `Authorization: Bearer <token>`.
 
 ## Development Guidelines
 

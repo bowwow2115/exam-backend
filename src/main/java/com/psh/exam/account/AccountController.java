@@ -1,8 +1,11 @@
 package com.psh.exam.account;
 
 import com.psh.exam.account.AccountDtos.AccountResponse;
+import com.psh.exam.account.AccountDtos.LoginRequest;
+import com.psh.exam.account.AccountDtos.LoginResponse;
 import com.psh.exam.account.AccountDtos.SignUpRequest;
 import com.psh.exam.security.AccountPrincipal;
+import com.psh.exam.security.JwtService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -17,9 +20,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class AccountController {
 
     private final AccountService accountService;
+    private final JwtService jwtService;
 
-    public AccountController(AccountService accountService) {
+    public AccountController(AccountService accountService, JwtService jwtService) {
         this.accountService = accountService;
+        this.jwtService = jwtService;
     }
 
     @PostMapping("/signup")
@@ -28,8 +33,10 @@ public class AccountController {
     }
 
     @PostMapping("/login")
-    public AccountResponse login(@AuthenticationPrincipal AccountPrincipal principal) {
-        return AccountResponse.from(principal.account());
+    public LoginResponse login(@RequestBody LoginRequest request) {
+        Account account = accountService.authenticate(request);
+        AccountResponse accountResponse = AccountResponse.from(account);
+        return new LoginResponse(jwtService.createToken(account), "Bearer", accountResponse);
     }
 
     @GetMapping("/me")

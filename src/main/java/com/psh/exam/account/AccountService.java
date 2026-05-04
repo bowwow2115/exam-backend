@@ -1,6 +1,7 @@
 package com.psh.exam.account;
 
 import com.psh.exam.account.AccountDtos.AccountResponse;
+import com.psh.exam.account.AccountDtos.LoginRequest;
 import com.psh.exam.account.AccountDtos.SignUpRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -60,6 +61,26 @@ public class AccountService {
     public Account getAccount(Long accountId) {
         return accountRepository.findById(accountId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "계정을 찾을 수 없습니다."));
+    }
+
+    @Transactional(readOnly = true)
+    public Account authenticate(LoginRequest request) {
+        if (request == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "로그인 요청 본문이 필요합니다.");
+        }
+
+        String email = normalizeEmail(request.email());
+        String password = trimToNull(request.password());
+        if (email == null || password == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "이메일 또는 비밀번호가 올바르지 않습니다.");
+        }
+
+        Account account = accountRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "이메일 또는 비밀번호가 올바르지 않습니다."));
+        if (!passwordEncoder.matches(password, account.getPasswordHash())) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "이메일 또는 비밀번호가 올바르지 않습니다.");
+        }
+        return account;
     }
 
     private String normalizeEmail(String value) {
