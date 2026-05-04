@@ -89,15 +89,21 @@ public final class ExamDtos {
             String prompt,
             int points,
             String explanation,
+            /** Count of correct choices (for attempt UI; which choices are correct remains hidden on published exams). */
+            int correctAnswerCount,
             List<ChoiceResponse> choices
     ) {
         public static QuestionResponse from(Question question, boolean includeCorrectAnswers) {
+            int correctCount = (int) question.getChoices().stream()
+                    .filter(Choice::isCorrect)
+                    .count();
             return new QuestionResponse(
                     question.getId(),
                     question.getSortOrder(),
                     question.getPrompt(),
                     question.getPoints(),
                     includeCorrectAnswers ? question.getExplanation() : null,
+                    correctCount,
                     question.getChoices().stream()
                             .sorted(Comparator.comparingInt(Choice::getSortOrder))
                             .map(choice -> ChoiceResponse.from(choice, includeCorrectAnswers))
@@ -120,5 +126,13 @@ public final class ExamDtos {
                     includeCorrectAnswers ? choice.isCorrect() : null
             );
         }
+    }
+
+    /**
+     * 로그인 사용자가 응시 중 정답 보기를 요청할 때 사용합니다. (공개 시험 상세 응답에는 정답이 포함되지 않습니다.)
+     */
+    public record QuestionCorrectChoiceIdsResponse(
+            List<Long> correctChoiceIds
+    ) {
     }
 }

@@ -7,11 +7,13 @@ import com.psh.exam.exam.ExamDtos.CreateExamRequest;
 import com.psh.exam.exam.ExamDtos.CreateQuestionRequest;
 import com.psh.exam.exam.ExamDtos.ExamDetailResponse;
 import com.psh.exam.exam.ExamDtos.ExamSummaryResponse;
+import com.psh.exam.exam.ExamDtos.QuestionCorrectChoiceIdsResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -104,6 +106,27 @@ public class ExamService {
     public Exam getDetailedExam(Long examId) {
         return examRepository.findDetailedById(examId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "시험을 찾을 수 없습니다."));
+    }
+
+    /**
+     * 게시된 시험의 한 문항에 대해 정답 선택지 ID만 반환합니다. (JWT 필요)
+     */
+    @Transactional(readOnly = true)
+    public QuestionCorrectChoiceIdsResponse getPublishedQuestionCorrectChoiceIds(Long examId, Long questionId) {
+        Exam exam = getDetailedExam(examId);
+        if (!exam.isPublished()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "시험을 찾을 수 없습니다.");
+        }
+        Question question = exam.getQuestions().stream()
+                .filter(q -> q.getId().equals(questionId))
+                .findFirst()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "문항을 찾을 수 없습니다."));
+        List<Long> ids = question.getChoices().stream()
+                .filter(Choice::isCorrect)
+                .map(Choice::getId)
+                .sorted(Comparator.naturalOrder())
+                .toList();
+        return new QuestionCorrectChoiceIdsResponse(ids);
     }
 
     private Integer validateTimeLimit(Integer timeLimitMinutes) {
