@@ -7,7 +7,8 @@ import com.psh.exam.exam.ExamDtos.CreateExamRequest;
 import com.psh.exam.exam.ExamDtos.CreateQuestionRequest;
 import com.psh.exam.exam.ExamDtos.ExamDetailResponse;
 import com.psh.exam.exam.ExamDtos.ExamSummaryResponse;
-import com.psh.exam.exam.ExamDtos.QuestionCorrectChoiceIdsResponse;
+import com.psh.exam.exam.ExamDtos.QuestionRevealResponse;
+import com.psh.exam.exam.ExamDtos.QuestionRevealResponse.ChoiceRevealRow;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -70,10 +71,15 @@ public class ExamService {
                 if (correct) {
                     correctCount++;
                 }
+                String rationale = trimToNull(choiceRequest.rationale());
+                if (rationale != null && rationale.length() > 8_000) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "선택지 해설은 8000자 이하여야 합니다.");
+                }
                 question.addChoice(new Choice(
                         choiceOrder++,
                         requireLength(choiceRequest.text(), "선택지", 1, 2_000),
-                        correct
+                        correct,
+                        rationale
                     ));
             }
             if (correctCount == 0) {
@@ -109,10 +115,10 @@ public class ExamService {
     }
 
     /**
-     * 게시된 시험의 한 문항에 대해 정답 선택지 ID만 반환합니다. (JWT 필요)
+     * 게시된 시험의 한 문항에 대해 정답 id·문항 해설·보기별 해설을 반환합니다. (JWT 필요)
      */
     @Transactional(readOnly = true)
-    public QuestionCorrectChoiceIdsResponse getPublishedQuestionCorrectChoiceIds(Long examId, Long questionId) {
+    public QuestionRevealResponse getPublishedQuestionReveal(Long examId, Long questionId) {
         Exam exam = getDetailedExam(examId);
         if (!exam.isPublished()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "시험을 찾을 수 없습니다.");
@@ -126,7 +132,11 @@ public class ExamService {
                 .map(Choice::getId)
                 .sorted(Comparator.naturalOrder())
                 .toList();
-        return new QuestionCorrectChoiceIdsResponse(ids);
+        List<ChoiceRevealRow> reveals = question.getChoices().stream()
+                .sorted(Comparator.comparingInt(Choice::getSortOrder))
+                .map(c -> new ChoiceRevealRow(c.getId(), c.getSortOrder(), c.isCorrect(), c.getRationale()))
+                .toList();
+        return new QuestionRevealResponse(ids, question.getExplanation(), reveals);
     }
 
     private Integer validateTimeLimit(Integer timeLimitMinutes) {

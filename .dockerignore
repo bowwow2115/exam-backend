@@ -1,0 +1,11 @@
+.git
+.gradle
+build
+out
+
+src/main/resources/frontend/node_modules
+src/main/resources/frontend/dist
+
+data
+docs
+*.log

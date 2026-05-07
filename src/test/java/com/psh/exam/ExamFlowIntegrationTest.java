@@ -12,17 +12,21 @@ import com.psh.exam.exam.ExamDtos.CreateChoiceRequest;
 import com.psh.exam.exam.ExamDtos.CreateExamRequest;
 import com.psh.exam.exam.ExamDtos.CreateQuestionRequest;
 import com.psh.exam.exam.ExamDtos.ExamDetailResponse;
+import com.psh.exam.exam.ExamDtos.QuestionRevealResponse;
 import com.psh.exam.exam.ExamService;
 import com.psh.exam.wrongnote.WrongNoteDtos.WrongNoteResponse;
+import com.psh.exam.wrongnote.WrongNoteDtos.CreateWrongNoteRequest;
 import com.psh.exam.wrongnote.WrongNoteService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest
 class ExamFlowIntegrationTest {
@@ -63,9 +67,9 @@ class ExamFlowIntegrationTest {
                                 2,
                                 "IDENTITY와 SEQUENCE는 대표적인 식별자 생성 전략입니다.",
                                 List.of(
-                                        new CreateChoiceRequest("IDENTITY", true),
-                                        new CreateChoiceRequest("SEQUENCE", true),
-                                        new CreateChoiceRequest("COOKIE", false)
+                                        new CreateChoiceRequest("IDENTITY", true, "IDENTITY는 대표적인 JPA 식별자 생성 전략입니다."),
+                                        new CreateChoiceRequest("SEQUENCE", true, "SEQUENCE는 대표적인 JPA 식별자 생성 전략입니다."),
+                                        new CreateChoiceRequest("COOKIE", false, "COOKIE는 JPA 식별자 생성 전략이 아닙니다.")
                                 )
                         ),
                         new CreateQuestionRequest(
@@ -73,8 +77,8 @@ class ExamFlowIntegrationTest {
                                 1,
                                 "PostgreSQL 기본 포트는 5432입니다.",
                                 List.of(
-                                        new CreateChoiceRequest("3306", false),
-                                        new CreateChoiceRequest("5432", true)
+                                        new CreateChoiceRequest("3306", false, "3306은 MySQL 기본 포트입니다."),
+                                        new CreateChoiceRequest("5432", true, "5432는 PostgreSQL 기본 포트입니다.")
                                 )
                         )
                 )
@@ -103,5 +107,65 @@ class ExamFlowIntegrationTest {
         assertThat(wrongNotes).hasSize(1);
         assertThat(wrongNotes.get(0).questionId()).isEqualTo(postgresQuestionId);
         assertThat(wrongNotes.get(0).wrongCount()).isEqualTo(1);
+
+        QuestionRevealResponse reveal = examService.getPublishedQuestionReveal(exam.id(), postgresQuestionId);
+        assertThat(reveal.correctChoiceIds()).containsExactly(exam.questions().get(1).choices().get(1).id());
+        assertThat(reveal.questionExplanation()).isEqualTo("PostgreSQL 기본 포트는 5432입니다.");
+        assertThat(reveal.choiceReveals())
+                .extracting(QuestionRevealResponse.ChoiceRevealRow::rationale)
+                .containsExactly("3306은 MySQL 기본 포트입니다.", "5432는 PostgreSQL 기본 포트입니다.");
+    }
+
+    @Test
+    void createWrongNoteFromRevealOnlyAcceptsWrongSelectionAndRejectsDuplicates() {
+        AccountResponse account = accountService.signUp(new SignUpRequest(
+                "manual-note@example.com",
+                "password123",
+                "manual note user"
+        ));
+        ExamDetailResponse exam = examService.createExam(account.id(), new CreateExamRequest(
+                "오답노트 수동 추가",
+                "정답 확인에서 추가",
+                10,
+                true,
+                List.of(new CreateQuestionRequest(
+                        "AWS Lambda 로컬 이벤트 샘플 생성 명령은?",
+                        1,
+                        "sam local generate-event가 서비스 이벤트 구조에 맞는 샘플 이벤트를 생성합니다.",
+                        List.of(
+                                new CreateChoiceRequest("sam deploy", false, "sam deploy는 배포 명령입니다."),
+                                new CreateChoiceRequest("sam local generate-event", true, "로컬 테스트용 이벤트 페이로드를 생성합니다.")
+                        )
+                ))
+        ));
+        Long questionId = exam.questions().get(0).id();
+        Long wrongChoiceId = exam.questions().get(0).choices().get(0).id();
+        Long correctChoiceId = exam.questions().get(0).choices().get(1).id();
+
+        assertThatThrownBy(() -> wrongNoteService.createWrongNote(account.id(), new CreateWrongNoteRequest(
+                exam.id(),
+                questionId,
+                List.of(correctChoiceId)
+        )))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("정답 문항은 오답노트에 추가할 수 없습니다.");
+
+        WrongNoteResponse created = wrongNoteService.createWrongNote(account.id(), new CreateWrongNoteRequest(
+                exam.id(),
+                questionId,
+                List.of(wrongChoiceId)
+        ));
+
+        assertThat(created.questionId()).isEqualTo(questionId);
+        assertThat(created.wrongCount()).isEqualTo(1);
+        assertThat(wrongNoteService.listWrongNotes(account.id(), false)).hasSize(1);
+
+        assertThatThrownBy(() -> wrongNoteService.createWrongNote(account.id(), new CreateWrongNoteRequest(
+                exam.id(),
+                questionId,
+                List.of(wrongChoiceId)
+        )))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("이미 오답노트에 추가된 문항입니다.");
     }
 }

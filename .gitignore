@@ -14,7 +14,8 @@ application-*.local.properties
 src/main/resources/application.properties
 data/
 docs/
-scripts/
+scripts/__pycache__/
+scripts/sql/
 
 ### Logs ###
 logs/

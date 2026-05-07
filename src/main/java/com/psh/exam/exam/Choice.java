@@ -38,13 +38,24 @@ public class Choice {
     @Column(nullable = false, name = "is_correct")
     private boolean correct;
 
+    /**
+     * 정답 확인 시 노출하는 해설입니다. 정답 보기는 맞는 이유, 오답 보기는 틀린 이유를 담습니다.
+     */
+    @Column(columnDefinition = "text")
+    private String rationale;
+
     protected Choice() {
     }
 
     public Choice(int sortOrder, String text, boolean correct) {
+        this(sortOrder, text, correct, null);
+    }
+
+    public Choice(int sortOrder, String text, boolean correct, String rationale) {
         this.sortOrder = sortOrder;
         this.text = text;
         this.correct = correct;
+        this.rationale = rationale;
     }
 
     void assignQuestion(Question question) {
@@ -69,5 +80,9 @@ public class Choice {
 
     public boolean isCorrect() {
         return correct;
+    }
+
+    public String getRationale() {
+        return rationale;
     }
 }

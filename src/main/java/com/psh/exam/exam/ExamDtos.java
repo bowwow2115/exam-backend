@@ -28,7 +28,9 @@ public final class ExamDtos {
 
     public record CreateChoiceRequest(
             String text,
-            Boolean correct
+            Boolean correct,
+            /** 정답 확인 시 맞는 이유/틀린 이유 해설(선택). */
+            String rationale
     ) {
     }
 
@@ -116,23 +118,33 @@ public final class ExamDtos {
             Long id,
             int sortOrder,
             String text,
-            Boolean correct
+            Boolean correct,
+            /** 시험 생성·상세(정답 포함) 응답에서만 채워집니다. */
+            String rationale
     ) {
         public static ChoiceResponse from(Choice choice, boolean includeCorrectAnswers) {
             return new ChoiceResponse(
                     choice.getId(),
                     choice.getSortOrder(),
                     choice.getText(),
-                    includeCorrectAnswers ? choice.isCorrect() : null
+                    includeCorrectAnswers ? choice.isCorrect() : null,
+                    includeCorrectAnswers ? choice.getRationale() : null
             );
         }
     }
 
     /**
-     * 로그인 사용자가 응시 중 정답 보기를 요청할 때 사용합니다. (공개 시험 상세 응답에는 정답이 포함되지 않습니다.)
+     * 로그인 사용자가 응시 중 정답 확인을 요청할 때 반환합니다.
+     * (공개 시험 상세 응답에는 정답·해설이 포함되지 않습니다.)
      */
-    public record QuestionCorrectChoiceIdsResponse(
-            List<Long> correctChoiceIds
+    public record QuestionRevealResponse(
+            List<Long> correctChoiceIds,
+            /** 문항 단위 해설(있을 때). */
+            String questionExplanation,
+            /** 해당 문항의 모든 보기 id·정답 여부·보기별 해설. */
+            List<ChoiceRevealRow> choiceReveals
     ) {
+        public record ChoiceRevealRow(long id, int sortOrder, boolean correct, String rationale) {
+        }
     }
 }

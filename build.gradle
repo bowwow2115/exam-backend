@@ -47,3 +47,34 @@ dependencies {
 tasks.named('test') {
     useJUnitPlatform()
 }
+
+def frontendDir = layout.projectDirectory.dir('src/main/resources/frontend')
+def frontendDist = frontendDir.dir('dist')
+
+tasks.register('npmBuild', Exec) {
+    group = 'build'
+    description = 'Runs npm ci && npm run build in the Vue frontend (use -PskipFrontendBuild to skip)'
+    workingDir = frontendDir
+    commandLine 'sh', '-c', 'npm ci && npm run build'
+    inputs.dir(frontendDir.dir('src'))
+    inputs.files(
+            frontendDir.file('package.json'),
+            frontendDir.file('package-lock.json'),
+            frontendDir.file('vite.config.js'),
+            frontendDir.file('index.html')
+    )
+    outputs.dir(frontendDist)
+    onlyIf { !project.hasProperty('skipFrontendBuild') }
+}
+
+tasks.named('processResources', ProcessResources) {
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+    if (!project.hasProperty('skipFrontendBuild')) {
+        dependsOn('npmBuild')
+    }
+    if (!project.hasProperty('skipFrontendBuild') || frontendDist.asFile.exists()) {
+        from(frontendDist) {
+            into 'static'
+        }
+    }
+}

@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -27,6 +28,7 @@ import java.util.regex.Pattern;
  */
 @Component
 @ConditionalOnProperty(name = "app.import.exam-json")
+@Order(1)
 public class ExamImportRunner implements ApplicationRunner {
 
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
@@ -36,6 +38,7 @@ public class ExamImportRunner implements ApplicationRunner {
     private final ExamRepository examRepository;
     private final PasswordEncoder passwordEncoder;
     private final String importPath;
+    private final String additionalImportPaths;
     private final boolean skipExistingTitle;
 
     public ExamImportRunner(
@@ -44,6 +47,7 @@ public class ExamImportRunner implements ApplicationRunner {
             ExamRepository examRepository,
             PasswordEncoder passwordEncoder,
             @Value("${app.import.exam-json}") String importPath,
+            @Value("${app.import.exam-json-additional:}") String additionalImportPaths,
             @Value("${app.import.skip-existing-title:true}") boolean skipExistingTitle
     ) {
         this.objectMapper = objectMapper;
@@ -51,15 +55,26 @@ public class ExamImportRunner implements ApplicationRunner {
         this.examRepository = examRepository;
         this.passwordEncoder = passwordEncoder;
         this.importPath = importPath;
+        this.additionalImportPaths = additionalImportPaths == null ? "" : additionalImportPaths;
         this.skipExistingTitle = skipExistingTitle;
     }
 
     @Override
     @Transactional
     public void run(ApplicationArguments args) throws IOException {
-        Path path = Path.of(importPath);
+        importExamFromPath(Path.of(importPath));
+        for (String raw : additionalImportPaths.split(",")) {
+            String trimmed = raw.trim();
+            if (trimmed.isEmpty()) {
+                continue;
+            }
+            importExamFromPath(Path.of(trimmed));
+        }
+    }
+
+    private void importExamFromPath(Path path) throws IOException {
         if (!Files.isRegularFile(path)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "시험 import 파일을 찾을 수 없습니다: " + importPath);
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "시험 import 파일을 찾을 수 없습니다: " + path);
         }
 
         ExamImportRequest request = objectMapper.readValue(path.toFile(), ExamImportRequest.class);
@@ -103,10 +118,15 @@ public class ExamImportRunner implements ApplicationRunner {
                 if (correct) {
                     correctCount++;
                 }
+                String rationale = trimToNull(choiceRequest.rationale());
+                if (rationale != null && rationale.length() > 8_000) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "선택지 해설은 8000자 이하여야 합니다.");
+                }
                 question.addChoice(new Choice(
                         choiceOrder++,
                         requireLength(choiceRequest.text(), "선택지", 1, 2_000),
-                        correct
+                        correct,
+                        rationale
                 ));
             }
             if (correctCount == 0) {
@@ -209,7 +229,8 @@ public class ExamImportRunner implements ApplicationRunner {
 
     public record ChoiceImportRequest(
             String text,
-            Boolean correct
+            Boolean correct,
+            String rationale
     ) {
     }
 }

@@ -1,78 +1,44 @@
 # AGENT.md
 
-## Project Overview
+## Project
 
-This is a Spring Boot 4 / Java 17 web application for multiple-choice exams with multiple correct answers. It uses Spring Data JPA, Spring Security, and PostgreSQL in production. Tests use H2 in PostgreSQL compatibility mode.
+Spring Boot 4 / Java 17 exam app with Vue 3 frontend submodule at `src/main/resources/frontend`.
 
-Main features:
-- Account signup and JWT authentication
-- Authenticated exam creation and lookup
-- Multiple-answer question submission and scoring
-- Attempt result lookup
-- Wrong-note creation, lookup, and update
-- Optional JSON exam import for authorized local question data
+Backend packages:
+- `account`: signup, login, account profile
+- `security`: JWT auth and Spring Security
+- `exam`: exam/question/choice/import APIs
+- `attempt`: submissions, grading, result reveal
+- `wrongnote`: wrong answer review notes
 
-## Tech Stack
+Frontend:
+- Vue 3 + Vite + Vuetify + Pinia
+- API client: `src/main/resources/frontend/src/api/client.js`
 
-- Java 17
-- Spring Boot 4.0.6
-- Spring Web MVC
-- Spring Data JPA
-- QueryDSL
-- Spring Security
-- PostgreSQL
-- Gradle
-- JUnit 5 / Spring Boot Test
+## Commands
 
-## Important Commands
-
-Run tests:
+Backend tests:
 
 ```bash
 env GRADLE_USER_HOME=/tmp/gradle sh gradlew test
 ```
 
-Run the app after PostgreSQL is available:
+Frontend build:
 
 ```bash
-DB_URL=jdbc:postgresql://localhost:5432/exam \
-DB_USERNAME=exam \
-DB_PASSWORD=exam \
-sh gradlew bootRun
+cd src/main/resources/frontend
+npm run build
 ```
 
-Default app configuration is in `src/main/resources/application.properties`.
-Test configuration is in `src/test/resources/application.properties`.
+## Auth Contract
 
-## Package Structure
+Authentication is JWT bearer token based.
 
-- `com.psh.exam.account`: account entity, signup, profile API
-- `com.psh.exam.security`: Spring Security configuration and user details
-- `com.psh.exam.config`: shared infrastructure configuration such as QueryDSL
-- `com.psh.exam.exam`: exam, question, choice domain and exam API
-- `com.psh.exam.attempt`: attempt, answer, grading, result API
-- `com.psh.exam.wrongnote`: wrong-note domain and API
-- `com.psh.exam.common`: shared base entity and exception handling
-
-## Domain Notes
-
-- `Exam` has many `Question` records.
-- `Question` has many `Choice` records.
-- A question supports multiple correct answers through `Choice.correct`.
-- `ExamAttempt` stores one submitted exam result per attempt.
-- `AttemptAnswer` stores selected choices for each question.
-- Scoring is all-or-nothing per question: selected choice IDs must exactly match correct choice IDs.
-- `WrongNote` is unique per account and question.
-- A wrong answer creates or updates a wrong note.
-- A later correct answer marks the existing wrong note as resolved.
-
-## API Summary
-
-Public:
+Public APIs:
 - `POST /api/accounts/signup`
 - `POST /api/accounts/login`
 
-Authenticated:
+Authenticated APIs:
 - `GET /api/accounts/me`
 - `GET /api/exams`
 - `GET /api/exams/{examId}`
@@ -82,33 +48,45 @@ Authenticated:
 - `GET /api/wrong-notes`
 - `PATCH /api/wrong-notes/{noteId}`
 
-Authentication uses stateless JWT bearer tokens. `POST /api/accounts/login` verifies the account email and password against the database and returns an access token. Frontend requests to authenticated endpoints must send `Authorization: Bearer <token>`.
+Token rules:
+- Login validates email/password from DB and returns `accessToken`.
+- Frontend stores the token and sends `Authorization: Bearer <token>` for authenticated APIs.
+- Do not reintroduce HTTP Basic auth.
+- When changing `SecurityConfig`, check frontend API usage.
+- When changing frontend token/API logic, check backend controllers and security tests.
 
-## Development Guidelines
+## Exam Data
 
-- Keep controllers thin. Put validation and business rules in services.
-- When backend API or Spring Security rules change, cross-check `src/main/resources/frontend` API usage and update the frontend if needed.
-- When frontend API usage changes, cross-check controllers and `SecurityConfig` so public and authenticated routes stay aligned.
-- Use DTO records for request and response payloads.
-- Do not expose correct answers from public exam lookup.
-- Do not import, translate, or store third-party question banks unless the user has provided data they own or have permission to use.
-- Return correct answers and explanations only in attempt results and wrong notes.
-- Keep JPA relationships lazy by default, then use `@EntityGraph` on repository queries where read models need related data.
-- Use QueryDSL for dynamic conditions or read queries that become awkward with derived repository method names.
-- Preserve `spring.jpa.open-in-view=false`; fetch required associations inside service transactions.
-- Do not add unrelated refactors while implementing a feature.
-- Add focused integration tests for flows that touch grading, persistence, or security.
+Source files:
+- `src/main/resources/exam.md`
+- `src/main/resources/exam2.txt`
 
-## Database Configuration
+Generated/import data lives in `data/`.
 
-Production defaults:
-- `DB_URL`: `jdbc:postgresql://localhost:5432/exam`
-- `DB_USERNAME`: `exam`
-- `DB_PASSWORD`: `exam`
-- `DDL_AUTO`: `update`
+Scripts:
+- `scripts/parse_exam2_to_import.py`: parse `exam2.txt` to import JSON with explanations.
+- `scripts/retranslate_exam_ko.py`: build translated/import JSON and enrich explanations/rationales.
+- `scripts/rebuild_translated_exams.py`: rebuild import JSON and reimport exams.
 
-For real deployments, prefer Flyway or Liquibase migrations over Hibernate `ddl-auto=update`.
+Rules:
+- Questions have `explanation`.
+- Choices can have `rationale`.
+- Correct answers and explanations must only be revealed after submission/result lookup or in wrong notes.
+- Do not expose `correct=true`, `correctChoiceIds`, explanations, or rationales from normal exam detail used for taking exams.
 
-## Exam Import
+## Development Rules
 
-Authorized local question data can be imported on startup by setting `app.import.exam-json` or the equivalent `APP_IMPORT_EXAM_JSON` environment variable. See `docs/exam-import.md` for the JSON format.
+- Keep controllers thin; put validation/business logic in services.
+- Use DTO records for request/response payloads.
+- Preserve `spring.jpa.open-in-view=false`; fetch needed associations in service transactions.
+- Use focused integration tests for auth, grading, result reveal, imports, and security route changes.
+- Backend/API/Security changes must be cross-checked against `src/main/resources/frontend`.
+- Frontend API changes must be cross-checked against controllers, DTOs, and `SecurityConfig`.
+- Avoid unrelated refactors.
+- Do not import or store third-party question data unless the user confirms they have rights to use it.
+
+## Current Notes
+
+- `src/main/resources/application.properties` is gitignored; use env vars for local runtime secrets.
+- JWT config keys: `JWT_SECRET`, `JWT_EXPIRATION_SECONDS`.
+- Main repo tracks the frontend as a git submodule; commit frontend changes inside the submodule first, then update the main repo submodule pointer.

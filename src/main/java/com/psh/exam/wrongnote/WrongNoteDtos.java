@@ -17,6 +17,13 @@ public final class WrongNoteDtos {
     ) {
     }
 
+    public record CreateWrongNoteRequest(
+            Long examId,
+            Long questionId,
+            List<Long> selectedChoiceIds
+    ) {
+    }
+
     public record WrongNoteResponse(
             Long id,
             Long examId,

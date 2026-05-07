@@ -3,7 +3,7 @@ package com.psh.exam.exam;
 import com.psh.exam.exam.ExamDtos.CreateExamRequest;
 import com.psh.exam.exam.ExamDtos.ExamDetailResponse;
 import com.psh.exam.exam.ExamDtos.ExamSummaryResponse;
-import com.psh.exam.exam.ExamDtos.QuestionCorrectChoiceIdsResponse;
+import com.psh.exam.exam.ExamDtos.QuestionRevealResponse;
 import com.psh.exam.security.AccountPrincipal;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -37,11 +37,11 @@ public class ExamController {
     }
 
     @GetMapping("/{examId}/questions/{questionId}/correct-choice-ids")
-    public QuestionCorrectChoiceIdsResponse getPublishedQuestionCorrectChoiceIds(
+    public QuestionRevealResponse getPublishedQuestionReveal(
             @PathVariable Long examId,
             @PathVariable Long questionId
     ) {
-        return examService.getPublishedQuestionCorrectChoiceIds(examId, questionId);
+        return examService.getPublishedQuestionReveal(examId, questionId);
     }
 
     @PostMapping
